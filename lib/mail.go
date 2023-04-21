@@ -8,7 +8,7 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-type MailStruct struct {
+type Mail struct {
 	from         string
 	to           string
 	subject      string
@@ -19,17 +19,26 @@ type MailStruct struct {
 	text         string
 	textFile     string
 	htmlFile     string
-	server       *ServerDetails
+	server       MailServer
 }
 
-type ServerDetails struct {
+type MailServer struct {
 	smtpServer   string
 	smtpPort     int
 	smtpUser     string
 	smtpPassword string
 }
 
-func (p *MailStruct) sendMail() {
+// NewMail returns a new mail struct
+func NewMail() *Mail {
+	return &Mail{}
+}
+
+func NewMailServer() *MailServer {
+	return &MailServer{}
+}
+
+func (p *Mail) sendMail() {
 
 	m := gomail.NewMessage()
 
