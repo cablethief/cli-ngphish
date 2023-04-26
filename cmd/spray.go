@@ -1,87 +1,104 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
+Copyright © 2022 Michael Kruger @_Cablethief
 */
 package cmd
 
 import (
-    "fmt"
+	"log"
 
-    "github.com/spf13/cobra"
+	"github.com/cablethief/cli-ngphish/lib"
+
+	"github.com/spf13/cobra"
 )
 
+var csvFile string
+var mailspray = &lib.Mail{}
+
+// Always needs a To and a From
+//
 // sprayCmd represents the spray command
 var sprayCmd = &cobra.Command{
-    Use:   "spray",
-    Short: "Spray at multiple mailboxes based off a CSV",
-    Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "spray",
+	Short: "Spray at multiple mailboxes based off a CSV",
+	Long: `Sprays multiple mailboxes pulling the To, From and template variables from a CSV. For example:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-    Run: func(cmd *cobra.Command, args []string) {
+The CSV will always require a "To" header, the rest of the variables in a 
+template may be specified with other headers. The normal GoPhish group CSV would
+be "To, FirstName, LastName, Position" where you can specify {{.FirstName}} etc in the template.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		EmailsParsed := lib.ParsePhishCSV(csvFile)
 
+		if !MailServer.MaintainConnection {
+			log.Println("Starting Sender Routine")
+			mailpipe, done := MailServer.GetMailChannel()
+			for i, _ := range EmailsParsed {
+				mailspray.To = EmailsParsed[i].To
+				mailspray.TemplateVars = EmailsParsed[i].TemplateVars
 
+				mailpipe <- mailspray.Create()
+				log.Println(mailspray)
 
-        
-        fmt.Println("spray called")
+			}
+			<-done
+			log.Println("Closing Sender Routine")
+			close(mailpipe)
+			close(done)
 
+		} else {
+			for i, _ := range EmailsParsed {
+				mailspray.To = EmailsParsed[i].To
+				mailspray.TemplateVars = EmailsParsed[i].TemplateVars
 
+				log.Println(mailspray)
+				MailServer.SendMail(mailspray.Create())
+			}
+		}
 
-    },
+	},
 }
 
 func init() {
-    rootCmd.AddCommand(sprayCmd)
+	rootCmd.AddCommand(sprayCmd)
 
-    sprayCmd.Flags().StringVarP(&smtpServer, "server", "s", "", "SMTP server to make a connection to. eg: tenant.mail.protection.outlook.com")
-    sprayCmd.MarkFlagRequired("server")
-    sprayCmd.Flags().IntVarP(&smtpPort, "port", "p", 25, "SMTP server port to make a connection to")
+	// Make sure to do a check to ensure the CSV doesn't include a from
+	sprayCmd.Flags().StringVarP(&mailspray.From, "from", "f", "", "Address to send email FROM. eg: Michael <michael@testing.test>")
 
-    sprayCmd.Flags().StringVar(&smtpUser, "username", "", "SMTP Username")
-    sprayCmd.Flags().StringVar(&smtpPassword, "password", "", "SMTP Password")
-    sprayCmd.MarkFlagsRequiredTogether("username", "password")
+	sprayCmd.Flags().StringVarP(&mailspray.Subject, "subject", "", "Good day", "Subject of the email")
+	sprayCmd.MarkFlagRequired("subject")
 
+	sprayCmd.Flags().StringVarP(&mailspray.HtmlFile, "htmltemplate", "", "", "HTML template to use")
+	sprayCmd.Flags().StringVarP(&mailspray.TextFile, "texttemplate", "", "", "TEXT template to use")
+	sprayCmd.Flags().StringVarP(&mailspray.Text, "text", "", "", "TEXT to use")
 
-    sprayCmd.Flags().StringVarP(&subject, "subject", "", "Good day", "Subject of the email")
-    sprayCmd.MarkFlagRequired("subject")
+	sprayCmd.MarkFlagFilename("htmltemplate", "html")
+	sprayCmd.MarkFlagFilename("texttemplate", "txt")
 
+	sprayCmd.MarkFlagsMutuallyExclusive("htmltemplate", "texttemplate", "text")
 
-    sprayCmd.Flags().StringVarP(&htmlFile, "htmltemplate", "", "", "HTML template to use")
-    sprayCmd.Flags().StringVarP(&textFile, "texttemplate", "", "", "TEXT template to use")
-    sprayCmd.Flags().StringVarP(&text, "text", "", "", "TEXT to use")
+	sprayCmd.Flags().StringVarP(&mailspray.CanaryURL, "canary", "", "", "Canary DNS token to use for Tracking. Will be used for the {{.Canary}} field in a template")
 
-    sprayCmd.MarkFlagFilename("htmltemplate","html")
-    sprayCmd.MarkFlagFilename("texttemplate","txt")
+	// sprayCmd.Flags().StringArrayVarP(&mailspray.TemplateVars, "templatevar", "v", []string{}, "Template variables eg: -v Name=Test -v URL=https://Test.com")
 
-    sprayCmd.MarkFlagsMutuallyExclusive("htmltemplate", "texttemplate", "text")
+	// sprayCmd.Flags().StringArrayVarP(&mailspray.To, "to", "t", []string{}, "Addresses to send email TO.")
+	// sprayCmd.MarkFlagRequired("to")
+	sprayCmd.Flags().StringVarP(&csvFile, "csv", "", "", "CSV file to parse")
+	sprayCmd.MarkFlagFilename("csv", "csv")
+	sprayCmd.MarkFlagRequired("csv")
 
-    sprayCmd.Flags().StringArrayVarP(&headerVars, "header", "", []string{}, "Specify additional headers eg: --header Phish=Knowbe4 --header Source=example")
+	sprayCmd.PersistentFlags().BoolVar(&MailServer.MaintainConnection, "dont-reuse", false, "Disable the reuse of a single SMTP connection")
 
-    sprayCmd.Flags().StringArrayVarP(&embedFiles, "embed", "e", []string{}, "Specify files to embed. These can then be refrenced by their file name in the html (eg: <img src=\"cid:email-logo1.png\">) eg: --embed email-logo1.png --embed email-logo2.png")
-    sprayCmd.Flags().StringArrayVarP(&attachFiles, "attach", "a", []string{}, "Specify files to attach. eg: --attach test.pdf --attach average.exe")
+	sprayCmd.Flags().StringArrayVarP(&mailspray.HeaderVars, "header", "", []string{}, "Specify additional headers eg: --header Phish=Knowbe4 --header Source=example")
 
+	sprayCmd.Flags().StringArrayVarP(&mailspray.EmbedFiles, "embed", "e", []string{}, "Specify files to embed. These can then be refrenced by their file name in the html (eg: <img src=\"cid:email-logo1.png\">) eg: --embed email-logo1.png --embed email-logo2.png")
+	sprayCmd.Flags().StringArrayVarP(&mailspray.AttachFiles, "attach", "a", []string{}, "Specify files to attach. eg: --attach test.pdf --attach average.exe")
 
+	// Here you will define your flags and configuration settings.
 
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// sprayCmd.PersistentFlags().String("foo", "", "A help for foo")
 
-    sprayCmd.Flags().StringArrayVarP(&templateVars, "templatevar", "v", []string{}, "Template variables eg: -v Name=Test -v URL=https://Test.com")
-
-    sprayCmd.Flags().StringVarP(&to, "to", "t", "", "Address to send email TO.")
-    sprayCmd.MarkFlagRequired("to")
-    sprayCmd.Flags().StringVarP(&from, "from", "f", "", "Address to send email FROM. eg: Michael <michael@testing.test>")
-    sprayCmd.MarkFlagRequired("from")
-
-
-
-
-    // Here you will define your flags and configuration settings.
-
-    // Cobra supports Persistent Flags which will work for this command
-    // and all subcommands, e.g.:
-    // sprayCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-    // Cobra supports local flags which will only run when this command
-    // is called directly, e.g.:
-    // sprayCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// sprayCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

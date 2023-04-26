@@ -1,6 +1,5 @@
 /*
-Copyright © 2022 Michael Kruger @_cablethief
-
+Copyright © 2022 Michael Kruger @_Cablethief
 */
 package main
 
