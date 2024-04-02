@@ -4,7 +4,7 @@ A CLI tool for sending phishing mails with templating options. I felt that in a 
 
 The tool is essentially a nice wrapper around the lovely [gomail](https://github.com/go-gomail/gomail) lib in order to template mails for both spear phishing and spraying. 
 
-I have mostly made use of this tool to test spoofing against office365 as it is quick to play around with different options and from addresses without the clutter of gophishes interface. 
+I have mostly made use of this tool to test spoofing against office365 (for example targeting onmicrosoft email addresses or sending mails directly to the *.mail.protection.outlook.com SMTP server) as it is quick to play around with different options and from addresses without the clutter of gophishes interface.
 
 ```
 Usage:
@@ -57,7 +57,7 @@ The spray command will want a csv file which has the field `to`. Additional fiel
 to, Name, Surname
 michael.cablethief@target.com, Michael, Kruger
 felipe.spanishman@target.com, Felipe, spanish
-szymon.ziolkowski@orangecyberdefense.com, Szymon, ASJKDHJKSAND
+szymon.ziolkowski@target.com, Szymon, ASJKDHJKSAND
 ```
 
 ```
