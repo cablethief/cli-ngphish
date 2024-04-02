@@ -55,9 +55,10 @@ The spray command will want a csv file which has the field `to`. Additional fiel
 
 ```
 to, Name, Surname
-michael.kruger@orangecyberdefense.com, Michael, Kruger
-felipe.molinadelatorre@orangecyberdefense.com, Felipe, Kruger2
+michael.cablethief@target.com, Michael, Kruger
+felipe.spanishman@target.com, Felipe, spanish
 szymon.ziolkowski@orangecyberdefense.com, Szymon, ASJKDHJKSAND
+```
 
 ```
 Usage:
