@@ -78,3 +78,12 @@ Flags:
       --text string           TEXT to use
       --texttemplate string   TEXT template to use
 ```
+
+
+### Thanks
+
+The [gomail](https://github.com/go-gomail/gomail) maintainers. Made things very easy and I could just wrap things up in a nice little cli. 
+
+## license
+
+`cli-ngphish` is licensed under a [GNU General Public v3 License](https://www.gnu.org/licenses/gpl-3.0.en.html). Permissions beyond the scope of this license may be available at <http://sensepost.com/contact/>.
